@@ -1,0 +1,15 @@
+{
+	"autodeskProduct":	"Fusion",
+	"type":	"addin",
+	"author":	"Hans Billiet",
+	"description":	{
+		"":	"Create thick line with start and end features"
+	},
+	"supportedOS":	"windows|mac",
+	"version":	"",
+	"editEnabled":	true,
+	"iconFilename":	"AddInIcon.svg",
+	"runOnStartup":	false,
+	"sourcewindows":	"ThickLine.vcxproj",
+	"sourcemac":	"ThickLine.xcodeproj"
+}
