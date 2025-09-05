@@ -49,10 +49,12 @@ constexpr double kEpsSketchLen = 1e-9;  // geometry construction guards
 // Default settings (structure)
 struct ThickLineSettings {
     double width_cm = 0.2;
+	std::string featAType = "None";
     double leadA_cm = 0;
-    double leadB_cm = 0;
     double featAL_cm = 0.5;
     double featAW_cm = 0.5;
+	std::string featBType = "None";
+    double leadB_cm = 0;
     double featBL_cm = 0.5;
     double featBW_cm = 0.5;
 };
@@ -87,10 +89,14 @@ inline bool saveSettingsIni(const ThickLineSettings& s)
     if (!f) return false;
 
     f << "width_cm=" << s.width_cm << "\n";
+
+    f << "featAType=" << s.featAType << "\n";
     f << "leadA_cm=" << s.leadA_cm << "\n";
-    f << "leadB_cm=" << s.leadB_cm << "\n";
     f << "featAL_cm=" << s.featAL_cm << "\n";
     f << "featAW_cm=" << s.featAW_cm << "\n";
+    
+    f << "featBType=" << s.featBType << "\n";
+    f << "leadB_cm=" << s.leadB_cm << "\n";
     f << "featBL_cm=" << s.featBL_cm << "\n";
     f << "featBW_cm=" << s.featBW_cm << "\n";
 
@@ -113,14 +119,19 @@ inline ThickLineSettings loadSettingsIni()
         std::string value = line.substr(pos + 1);
 
         try {
-            double v = std::stod(value);
-            if (key == "width_cm")  s.width_cm = v;
-            else if (key == "leadA_cm")  s.leadA_cm = v;
-            else if (key == "leadB_cm")  s.leadB_cm = v;
-            else if (key == "featAL_cm") s.featAL_cm = v;
-            else if (key == "featAW_cm") s.featAW_cm = v;
-            else if (key == "featBL_cm") s.featBL_cm = v;
-            else if (key == "featBW_cm") s.featBW_cm = v;
+            if (key == "featAType")      s.featAType = value;
+            else if (key == "featBType") s.featBType = value;
+            else
+            {
+                double v = std::stod(value);
+                if (key == "width_cm")  s.width_cm = v;
+                else if (key == "leadA_cm")  s.leadA_cm = v;
+                else if (key == "leadB_cm")  s.leadB_cm = v;
+                else if (key == "featAL_cm") s.featAL_cm = v;
+                else if (key == "featAW_cm") s.featAW_cm = v;
+                else if (key == "featBL_cm") s.featBL_cm = v;
+                else if (key == "featBW_cm") s.featBW_cm = v;
+            }
         }
         catch (...) {
             // ignore bad numbers
@@ -255,12 +266,12 @@ struct ThickLineParams {
     double leadBCm{ 0 };
 
 	// Feature A
-	std::string featA{ "None" };
+	std::string featAType{ "None" };
     double featAWCm{ 0 };
     double featALCm{ 0 };
 
 	// Feature B
-    std::string featB{ "None" };
+    std::string featBType{ "None" };
     double featBWCm{ 0 };
     double featBLCm{ 0 };
 
@@ -300,18 +311,18 @@ bool extractParams(const Ptr<CommandInputs>& inputs, ThickLineParams& P, std::st
     // read feature types
     Ptr<DropDownCommandInput> ddA = inputs->itemById(kFeatATypeId)->cast<DropDownCommandInput>();
     Ptr<DropDownCommandInput> ddB = inputs->itemById(kFeatBTypeId)->cast<DropDownCommandInput>();
-    P.featA = (ddA && ddA->selectedItem()) ? std::string(ddA->selectedItem()->name()) : "None";
-    P.featB = (ddB && ddB->selectedItem()) ? std::string(ddB->selectedItem()->name()) : "None";
+    P.featAType = (ddA && ddA->selectedItem()) ? std::string(ddA->selectedItem()->name()) : "None";
+    P.featBType = (ddB && ddB->selectedItem()) ? std::string(ddB->selectedItem()->name()) : "None";
 
 	// read feature sizes (cm)
     Ptr<ValueCommandInput> featAWIn = inputs->itemById(kFeatAWidthId)->cast<ValueCommandInput>();
     Ptr<ValueCommandInput> featALIn = inputs->itemById(kFeatALengthId)->cast<ValueCommandInput>();
     Ptr<ValueCommandInput> featBWIn = inputs->itemById(kFeatBWidthId)->cast<ValueCommandInput>();
     Ptr<ValueCommandInput> featBLIn = inputs->itemById(kFeatBLengthId)->cast<ValueCommandInput>();
-    P.featAWCm = (P.featA != "None" && featAWIn) ? featAWIn->value() : 0.0;
-    P.featALCm = (P.featA != "None" && featALIn) ? featALIn->value() : 0.0;
-    P.featBWCm = (P.featB != "None" && featBWIn) ? featBWIn->value() : 0.0;
-    P.featBLCm = (P.featB != "None" && featBLIn) ? featBLIn->value() : 0.0;
+    P.featAWCm = (P.featAType != "None" && featAWIn) ? featAWIn->value() : 0.0;
+    P.featALCm = (P.featAType != "None" && featALIn) ? featALIn->value() : 0.0;
+    P.featBWCm = (P.featBType != "None" && featBWIn) ? featBWIn->value() : 0.0;
+    P.featBLCm = (P.featBType != "None" && featBLIn) ? featBLIn->value() : 0.0;
 
     // Get selected points and convert from world coordinates to sketch coordinates
     Ptr<SelectionCommandInput> selA = inputs->itemById(kSelPointAId)->cast<SelectionCommandInput>();
@@ -378,12 +389,12 @@ bool validateParams(const ThickLineParams& P, std::string& err)
     }
 
 	// Feature widths must be >= line width
-    if (P.featA != "None" && P.featAWCm < P.widthCm)
+    if (P.featAType != "None" && P.featAWCm < P.widthCm)
     {
         err = "Feature A width must be >= line width.";
         return false;
     }
-    if (P.featB != "None" && P.featBWCm < P.widthCm)
+    if (P.featBType != "None" && P.featBWCm < P.widthCm)
     {
         err = "Feature B width must be >= line width.";
         return false;
@@ -401,16 +412,19 @@ bool validateParams(const ThickLineParams& P, std::string& err)
     return true;
 }
 
-// draw rectangle given 4 corners (in sketch space)
-inline void drawClosedQuad(const Ptr<adsk::fusion::Sketch>& sk, const V2& p0, const V2& p1, const V2& p2, const V2& p3)
+// draw rectangle given 3 corners (in sketch space)
+inline void drawThreePointRect(const Ptr<Sketch>& sk, const V2& p0, const V2& p1, const V2& p3)
 {
     if (!sk)
         return;
+
     Ptr<SketchLines> lines = sk->sketchCurves()->sketchLines();
-    lines->addByTwoPoints(P2(p0), P2(p1));
-    lines->addByTwoPoints(P2(p1), P2(p2));
-    lines->addByTwoPoints(P2(p2), P2(p3));
-    lines->addByTwoPoints(P2(p3), P2(p0));
+    Ptr<SketchLineList> rect = lines->addThreePointRectangle(P2(p0), P2(p1), P2(p3));
+
+	rect->item(0)->isFixed(true);
+	rect->item(1)->isFixed(true);
+	rect->item(2)->isFixed(true);
+	rect->item(3)->isFixed(true);
 }
 
 // draw triangle given 3 corners (in sketch space)
@@ -418,10 +432,20 @@ inline void drawTriangle(const Ptr<Sketch>& sk, const V2& a, const V2& b, const 
 {
     if (!sk)
         return;
+
+	Ptr<SketchPoints> pts = sk->sketchPoints();
+	Ptr<SketchPoint> pa = pts->add(P2(a));
+    Ptr<SketchPoint> pb = pts->add(P2(b));
+    Ptr<SketchPoint> pc = pts->add(P2(c));
+
     Ptr<SketchLines> lines = sk->sketchCurves()->sketchLines();
-    lines->addByTwoPoints(P2(a), P2(b));
-    lines->addByTwoPoints(P2(b), P2(c));
-    lines->addByTwoPoints(P2(c), P2(a));
+    Ptr<SketchLine> l1 = lines->addByTwoPoints(pa, pb);
+    Ptr<SketchLine> l2 = lines->addByTwoPoints(pb, pc);
+    Ptr<SketchLine> l3 = lines->addByTwoPoints(pc, pa);
+
+	l1->isFixed(true);
+	l2->isFixed(true);
+	l3->isFixed(true);
 }
 
 // Debug: dump all inputs
@@ -530,47 +554,49 @@ public:
         V2 Bplus = vadd(P.Bbase, wHalf);
         V2 Bminus = vsub(P.Bbase, wHalf);
 
-        drawClosedQuad(P.sketch, Aplus, Bplus, Bminus, Aminus);
+		drawThreePointRect(P.sketch, Aplus, Bplus, Aminus); // ensures corners are closed
 
         // --- feature at A (tip fixed at Aext, depth = aLuse) ---
-        if (P.featA == "Arrow") {
+        if (P.featAType == "Arrow") {
             V2 aSide = vscale(P.Wdir, P.featAWCm * 0.5);
             V2 baseL = vadd(P.Abase, aSide);
             V2 baseR = vadd(P.Abase, vscale(aSide, -1.0));
             drawTriangle(P.sketch, baseL, P.Aext, baseR);
         }
-        else if (P.featA == "T") {
+        else if (P.featAType == "T") {
             V2 aSide = vscale(P.Wdir, P.featAWCm * 0.5);
             V2 aL0 = vadd(P.Abase, aSide);
             V2 aR0 = vadd(P.Abase, vscale(aSide, -1.0));
             V2 aL1 = vadd(aL0, vscale(P.Ldir, -P.featALCm)); // toward Aext
             V2 aR1 = vadd(aR0, vscale(P.Ldir, -P.featALCm));
-            drawClosedQuad(P.sketch, aL0, aL1, aR1, aR0);
+			drawThreePointRect(P.sketch, aL0, aL1, aR0); // ensure corners are closed
         }
 
         // --- feature at B (tip fixed at Bext, depth = bLuse) ---
-        if (P.featB == "Arrow") {
+        if (P.featBType == "Arrow") {
             V2 bSide = vscale(P.Wdir, P.featBWCm * 0.5);
             V2 baseL = vadd(P.Bbase, bSide);
             V2 baseR = vadd(P.Bbase, vscale(bSide, -1.0));
             drawTriangle(P.sketch, baseL, P.Bext, baseR);
         }
-        else if (P.featB == "T") {
+        else if (P.featBType == "T") {
             V2 bSide = vscale(P.Wdir, P.featBWCm * 0.5);
             V2 bL0 = vadd(P.Bbase, bSide);
             V2 bR0 = vadd(P.Bbase, vscale(bSide, -1.0));
             V2 bL1 = vadd(bL0, vscale(P.Ldir, +P.featBLCm)); // toward Bext
             V2 bR1 = vadd(bR0, vscale(P.Ldir, +P.featBLCm));
-            drawClosedQuad(P.sketch, bL0, bL1, bR1, bR0);
+			drawThreePointRect(P.sketch, bL0, bL1, bR0); // ensure corners are closed
         }
 
 		ThickLineSettings S;
 		S.width_cm = P.widthCm;
 		S.leadA_cm = P.leadACm;
-		S.leadB_cm = P.leadBCm;
+		S.featAType = P.featAType;
 		S.featAL_cm = P.featALCm;
 		S.featAW_cm = P.featAWCm;
-		S.featBL_cm = P.featBLCm;
+        S.leadB_cm = P.leadBCm;
+        S.featBType = P.featBType;
+        S.featBL_cm = P.featBLCm;
 		S.featBW_cm = P.featBWCm;
         saveSettingsIni(S); // save current settings
 
@@ -632,9 +658,9 @@ public:
             // Feature A Type
             Ptr<DropDownCommandInput> ddA = giA->addDropDownCommandInput(kFeatATypeId, "Feature A Type", DropDownStyles::TextListDropDownStyle);
             Ptr<ListItems> itemsA = ddA->listItems();
-            itemsA->add("None", true);
-            itemsA->add("Arrow", false);
-            itemsA->add("T", false);
+            itemsA->add("None", S.featAType == "None");
+            itemsA->add("Arrow", S.featAType == "Arrow");
+            itemsA->add("T", S.featAType == "T");
 
             // Feature A Width / Length
             Ptr<ValueCommandInput> aW = giA->addValueInput(kFeatAWidthId, "Feature A Width", "mm", ValueInput::createByReal(S.featAW_cm));
@@ -658,9 +684,9 @@ public:
             // Feature B Type
             Ptr<DropDownCommandInput> ddB = giB->addDropDownCommandInput(kFeatBTypeId, "Feature B Type", DropDownStyles::TextListDropDownStyle);
             Ptr<ListItems> itemsB = ddB->listItems();
-            itemsB->add("None", true);
-            itemsB->add("Arrow", false);
-            itemsB->add("T", false);
+            itemsB->add("None", S.featBType == "None");
+            itemsB->add("Arrow", S.featBType == "Arrow");
+            itemsB->add("T", S.featBType == "T");
 
             // Feature B Width / Length
             Ptr<ValueCommandInput> bW = giB->addValueInput(kFeatBWidthId, "Feature B Width", "mm", ValueInput::createByReal(S.featBW_cm));
