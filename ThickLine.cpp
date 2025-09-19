@@ -172,7 +172,7 @@ static void syncErrorBox(const Ptr<CommandInputs>& inputs, bool valid, const std
     // We don’t rely on a getter for formattedText; compare with cached lastMsg.
     if (!valid && g_ErrState.lastMsg != msg)
     {
-		std::string fullMsg = "<font color='#d32f2f'>Error:" + msg + "</font>";
+		std::string fullMsg = "<font color='#d32f2f'>Error: " + msg + "</font>";
         errBox->formattedText(fullMsg.c_str());
     }
 
@@ -357,6 +357,11 @@ bool extractParams(const Ptr<CommandInputs>& inputs, ThickLineParams& P, std::st
 
     // Normalize direction vectors
     P.L = vlen(diff);
+    if (P.L <= kEpsCoincident)
+    { // <- early guard
+        err = "Points A and B are coincident or too close together.";
+        return false;
+    }
     P.Ldir = vscale(diff, 1.0 / P.L);
 	P.Wdir = vperp_ccw(P.Ldir);
 
@@ -388,17 +393,33 @@ bool validateParams(const ThickLineParams& P, std::string& err)
         return false;
     }
 
-	// Feature widths must be >= line width
-    if (P.featAType != "None" && P.featAWCm < P.widthCm)
+	// Check feature widths and lengths
+    if (P.featAType != "None")
     {
-        err = "Feature A width must be >= line width.";
-        return false;
+        if (P.featAWCm < P.widthCm)
+        {
+            err = "Feature A width must be >= line width.";
+            return false;
+        }
+        if (P.featALCm <= 0)
+        {
+            err = "Feature A length must be > 0.";
+            return false;
+		}
     }
-    if (P.featBType != "None" && P.featBWCm < P.widthCm)
+    if (P.featBType != "None")
     {
-        err = "Feature B width must be >= line width.";
-        return false;
-	}
+        if (P.featBWCm < P.widthCm)
+        {
+            err = "Feature B width must be >= line width.";
+            return false;
+        }
+        if (P.featBLCm <= 0)
+        {
+            err = "Feature B length must be > 0.";
+            return false;
+        }
+    }
 
 	// Main segment between feature bases
     V2 seg = vsub(P.Bbase, P.Abase);
@@ -433,15 +454,10 @@ inline void drawTriangle(const Ptr<Sketch>& sk, const V2& a, const V2& b, const 
     if (!sk)
         return;
 
-	Ptr<SketchPoints> pts = sk->sketchPoints();
-	Ptr<SketchPoint> pa = pts->add(P2(a));
-    Ptr<SketchPoint> pb = pts->add(P2(b));
-    Ptr<SketchPoint> pc = pts->add(P2(c));
-
     Ptr<SketchLines> lines = sk->sketchCurves()->sketchLines();
-    Ptr<SketchLine> l1 = lines->addByTwoPoints(pa, pb);
-    Ptr<SketchLine> l2 = lines->addByTwoPoints(pb, pc);
-    Ptr<SketchLine> l3 = lines->addByTwoPoints(pc, pa);
+    Ptr<SketchLine> l1 = lines->addByTwoPoints(P2(a), P2(b));
+    Ptr<SketchLine> l2 = lines->addByTwoPoints(P2(b), P2(c));
+    Ptr<SketchLine> l3 = lines->addByTwoPoints(P2(c), P2(a));
 
 	l1->isFixed(true);
 	l2->isFixed(true);
